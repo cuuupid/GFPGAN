@@ -70,7 +70,7 @@ class Predictor(BasePredictor):
     ) -> Path:
         print(img, version, scale)
         try:
-            extension = os.path.splitext(os.path.basename(str(img)))[1]
+            extension = os.path.splitext(os.path.basename(str(img)))[1] or 'png'
             img = cv2.imread(str(img), cv2.IMREAD_UNCHANGED)
             if len(img.shape) == 3 and img.shape[2] == 4:
                 img_mode = 'RGBA'
