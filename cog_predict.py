@@ -42,6 +42,10 @@ class Predictor(BasePredictor):
         if not os.path.exists('gfpgan/weights/GFPGANv1.4.pth'):
             os.system(
                 'wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth -P ./gfpgan/weights')
+        if not os.path.exists('gfpgan/weights/RestoreFormer.pth'):
+            os.system(
+                'wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/RestoreFormer.pth -P ./gfpgan/weights'
+            )
 
         # background enhancer with RealESRGAN
         model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu')
@@ -60,15 +64,16 @@ class Predictor(BasePredictor):
         self.current_version = 'v1.4'
 
     def predict(
-        self,
-        img: Path = Input(description='Input'),
-        version: str = Input(
-            description='GFPGAN version. v1.3: better quality. v1.4: more details and better identity.',
-            choices=['v1.2', 'v1.3', 'v1.4'],
-            default='v1.4'),
-        scale: float = Input(description='Rescaling factor', default=2)
+            self,
+            img: Path = Input(description='Input'),
+            version: str = Input(
+                description='GFPGAN version. v1.3: better quality. v1.4: more details and better identity.',
+                choices=['v1.2', 'v1.3', 'v1.4', 'RestoreFormer'],
+                default='v1.4'),
+            scale: float = Input(description='Rescaling factor', default=2),
     ) -> Path:
-        print(img, version, scale)
+        weight = 0.5
+        print(img, version, scale, weight)
         try:
             extension = os.path.splitext(os.path.basename(str(img)))[1] or 'png'
             img = cv2.imread(str(img), cv2.IMREAD_UNCHANGED)
@@ -109,14 +114,19 @@ class Predictor(BasePredictor):
                         channel_multiplier=2,
                         bg_upsampler=self.upsampler)
                     self.current_version = 'v1.4'
+                elif version == 'RestoreFormer':
+                    self.face_enhancer = GFPGANer(
+                        model_path='gfpgan/weights/RestoreFormer.pth',
+                        upscale=2,
+                        arch='RestoreFormer',
+                        channel_multiplier=2,
+                        bg_upsampler=self.upsampler)
 
             try:
                 _, _, output = self.face_enhancer.enhance(
-                    img, has_aligned=False, only_center_face=False, paste_back=True)
+                    img, has_aligned=False, only_center_face=False, paste_back=True, weight=weight)
             except RuntimeError as error:
                 print('Error', error)
-            else:
-                extension = 'png'
 
             try:
                 if scale != 2:

@@ -72,6 +72,9 @@ class GFPGANer():
                 different_w=True,
                 narrow=1,
                 sft_half=True)
+        elif arch == 'RestoreFormer':
+            from gfpgan.archs.restoreformer_arch import RestoreFormer
+            self.gfpgan = RestoreFormer()
         # initialize face helper
         self.face_helper = FaceRestoreHelper(
             upscale,
@@ -96,7 +99,7 @@ class GFPGANer():
         self.gfpgan = self.gfpgan.to(self.device)
 
     @torch.no_grad()
-    def enhance(self, img, has_aligned=False, only_center_face=False, paste_back=True):
+    def enhance(self, img, has_aligned=False, only_center_face=False, paste_back=True, weight=0.5):
         self.face_helper.clean_all()
 
         if has_aligned:  # the inputs are already aligned
@@ -119,7 +122,7 @@ class GFPGANer():
             cropped_face_t = cropped_face_t.unsqueeze(0).to(self.device)
 
             try:
-                output = self.gfpgan(cropped_face_t, return_rgb=False)[0]
+                output = self.gfpgan(cropped_face_t, return_rgb=False, weight=weight)[0]
                 # convert to image
                 restored_face = tensor2img(output.squeeze(0), rgb2bgr=True, min_max=(-1, 1))
             except RuntimeError as error:
